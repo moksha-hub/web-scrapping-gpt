@@ -4,7 +4,7 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 from transformers import pipeline
 import re
-from tabulate import tabulate #type:ignore
+from tabulate import tabulate
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -76,7 +76,9 @@ def search_product_price(product):
                 sources.append(result['link'])
         except Exception as e:
             print(f"Error processing {result['link']}: {str(e)}")
-    return prices, sources
+    if prices:
+        return np.mean(prices), sources[0]
+    return None, None
 
 def analyze_market_prices(df, product_col, price_col):
     print("Analyzing market prices...")
@@ -85,13 +87,62 @@ def analyze_market_prices(df, product_col, price_col):
 
     for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Analyzing products"):
         product = row[product_col]
-        prices, sources = search_product_price(product)
-        if prices:
-            df.at[index, 'real_time_price'] = np.mean(prices)
-            df.at[index, 'price_source'] = sources[0]  # Store the first source
+        price, source = search_product_price(product)
+        if price is not None:
+            df.at[index, 'real_time_price'] = price
+            df.at[index, 'price_source'] = source
 
     df['price_difference'] = df['real_time_price'] - df[price_col]
     return df
+
+def generate_dynamic_recommendations(df, product_col, price_col):
+    recommendations = []
+
+    # Analyze price elasticity
+    if 'demand' in df.columns:
+        df['price_elasticity'] = (df['demand'].pct_change() / df[price_col].pct_change()).abs()
+        avg_elasticity = df['price_elasticity'].mean()
+
+        if avg_elasticity > 1:
+            recommendations.append("The market appears to be highly price-sensitive. Consider small price adjustments and monitor demand closely.")
+        else:
+            recommendations.append("The market appears to be less price-sensitive. There may be room for price increases on premium products.")
+
+    # Analyze competitive positioning
+    df['price_difference_percentage'] = (df['real_time_price'] - df[price_col]) / df[price_col] * 100
+    avg_price_difference = df['price_difference_percentage'].mean()
+
+    if avg_price_difference > 5:
+        recommendations.append(f"On average, your prices are {avg_price_difference:.2f}% lower than the market. Consider gradual price increases to align with market rates.")
+    elif avg_price_difference < -5:
+        recommendations.append(f"On average, your prices are {-avg_price_difference:.2f}% higher than the market. Evaluate your value proposition or consider strategic price reductions.")
+
+    # Identify potential loss leaders
+    loss_leaders = df[df['price_difference_percentage'] < -10]
+    if not loss_leaders.empty:
+        recommendations.append(f"Potential loss leaders identified: {', '.join(loss_leaders[product_col].tolist())}. Evaluate if these are driving sales of other products.")
+
+    # Suggest dynamic pricing for high-demand products
+    if 'demand' in df.columns:
+        high_demand_products = df[df['demand'] > df['demand'].quantile(0.75)]
+        if not high_demand_products.empty:
+            recommendations.append(f"Consider implementing dynamic pricing for high-demand products: {', '.join(high_demand_products[product_col].tolist())}.")
+
+    # Analyze seasonal trends (assuming we have date information)
+    if 'date' in df.columns:
+        df['month'] = pd.to_datetime(df['date']).dt.month
+        seasonal_products = df.groupby('month')[price_col].mean().pct_change().abs() > 0.1
+        if seasonal_products.any():
+            recommendations.append("Detected seasonal price fluctuations. Consider implementing a seasonal pricing strategy.")
+
+    # Gather market insights for top products
+    top_products = df.nlargest(3, price_col)[product_col].tolist()
+    for product in top_products:
+        search_results = search_web(f"{product} market trends")
+        insight = extract_relevant_info(f"{product} pricing strategy", search_results)
+        recommendations.append(f"Market insight for {product}: {insight}")
+
+    return "\n   - ".join([""] + recommendations)
 
 def analyze_pricing_data(df, product_col, price_col):
     print("Analyzing pricing data...")
@@ -124,6 +175,9 @@ def analyze_pricing_data(df, product_col, price_col):
     plt.savefig('price_demand_analysis.png')
     plt.close()
 
+    # Generate dynamic recommendations
+    recommendations = generate_dynamic_recommendations(df, product_col, price_col)
+
     summary = f"""
     Pricing Analysis Summary:
     1. Model Performance:
@@ -134,10 +188,8 @@ def analyze_pricing_data(df, product_col, price_col):
          {df.nlargest(5, 'optimization_suggestion')[[product_col, price_col, 'real_time_price', 'predicted_price', 'optimization_suggestion', 'price_source']].to_string(index=False)}
        - Products with largest negative difference (potentially overpriced):
          {df.nsmallest(5, 'optimization_suggestion')[[product_col, price_col, 'real_time_price', 'predicted_price', 'optimization_suggestion', 'price_source']].to_string(index=False)}
-    3. Recommendations:
-       - Consider adjusting prices based on the 'optimization_suggestion' column
-       - Monitor real-time prices and adjust strategy accordingly
-       - Analyze demand elasticity for price changes
+    3. Dynamic Recommendations:
+       {recommendations}
     4. A visualization of the price-demand relationship has been saved as 'price_demand_analysis.png'
     """
     return summary
