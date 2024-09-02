@@ -235,20 +235,12 @@ def interactive_mode():
         if user_input.lower() == 'analyze pricing':
             file_path = input("Please provide the path to your product dataset (CSV or JSON format): ")
             df, product_col, price_col = load_data(file_path)
-<<<<<<< HEAD
 
-=======
-            
->>>>>>> 5cbbd06e53fd7b92dede1a516aab8aecef4ec64e
             if df is not None:
                 print("\nOriginal Dataset Summary:")
                 print(f"Dataset shape: {df.shape}")
                 print(f"Columns: {', '.join(df.columns)}")
-<<<<<<< HEAD
 
-=======
-                
->>>>>>> 5cbbd06e53fd7b92dede1a516aab8aecef4ec64e
                 print(f"\nAnalyzing market prices and optimizing...")
                 df = analyze_market_prices(df, product_col, price_col)
                 pricing_analysis = analyze_pricing_data(df, product_col, price_col)
@@ -257,14 +249,11 @@ def interactive_mode():
             # For answering questions, we need the dataset. Ask for the path.
             file_path = input("Please provide the path to your product dataset (CSV or JSON format): ")
             df, product_col, price_col = load_data(file_path)
-<<<<<<< HEAD
 
-=======
-            
->>>>>>> 5cbbd06e53fd7b92dede1a516aab8aecef4ec64e
             if df is not None:
                 answer = answer_question(user_input, df, product_col, price_col)
                 print(f"Answer: {answer}")
 
 if __name__ == "__main__":
     interactive_mode()
+
