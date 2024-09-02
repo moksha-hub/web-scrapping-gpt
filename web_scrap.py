@@ -225,27 +225,32 @@ def interactive_mode():
     print("Welcome to the Enhanced Pricing Analysis and Web Scraping Tool!")
     print("You can analyze pricing or ask general questions.")
 
-    file_path = input("Please provide the path to your product dataset (CSV or JSON format): ")
-    df, product_col, price_col = load_data(file_path)
+    while True:
+        user_input = input("\nEnter 'analyze pricing', your question, or type 'quit' to exit: ").strip()
 
-    if df is not None:
-        print("\nOriginal Dataset Summary:")
-        print(f"Dataset shape: {df.shape}")
-        print(f"Columns: {', '.join(df.columns)}")
+        if user_input.lower() == 'quit':
+            print("Thank you for using the Enhanced Pricing Analysis and Web Scraping Tool. Goodbye!")
+            break
 
-        while True:
-            user_input = input("\nEnter 'analyze pricing', your question, or type 'quit' to exit: ").strip()
+        if user_input.lower() == 'analyze pricing':
+            file_path = input("Please provide the path to your product dataset (CSV or JSON format): ")
+            df, product_col, price_col = load_data(file_path)
 
-            if user_input.lower() == 'quit':
-                print("Thank you for using the Enhanced Pricing Analysis and Web Scraping Tool. Goodbye!")
-                break
+            if df is not None:
+                print("\nOriginal Dataset Summary:")
+                print(f"Dataset shape: {df.shape}")
+                print(f"Columns: {', '.join(df.columns)}")
 
-            if user_input.lower() == 'analyze pricing':
                 print(f"\nAnalyzing market prices and optimizing...")
                 df = analyze_market_prices(df, product_col, price_col)
                 pricing_analysis = analyze_pricing_data(df, product_col, price_col)
                 print(pricing_analysis)
-            else:
+        else:
+            # For answering questions, we need the dataset. Ask for the path.
+            file_path = input("Please provide the path to your product dataset (CSV or JSON format): ")
+            df, product_col, price_col = load_data(file_path)
+
+            if df is not None:
                 answer = answer_question(user_input, df, product_col, price_col)
                 print(f"Answer: {answer}")
 
